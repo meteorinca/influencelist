@@ -6,32 +6,44 @@
     <title>Hattie's Visible Learning Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --hinge: #e74c3c; --high: #27ae60; --mid: #f1c40f; --bg: #f8f9fa; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #2c3e50; }
-        .dashboard { display: grid; grid-template-columns: 1fr 350px; gap: 20px; max-width: 1400px; margin: auto; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        h2 { margin-top: 0; font-size: 1.2rem; border-bottom: 2px solid var(--bg); padding-bottom: 10px; }
-        #impact-stats { text-align: center; display: flex; flex-direction: column; justify-content: center; height: 100%; }
-        .stat-number { font-size: 3rem; font-weight: bold; color: var(--high); margin: 10px 0; }
-        .stat-label { font-size: 0.9rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 1px; }
-        .chart-container { height: 400px; position: relative; }
-        .legend { display: flex; justify-content: space-around; font-size: 0.8rem; margin-top: 10px; }
-        .legend span::before { content: '●'; margin-right: 5px; }
+        :root { --hinge: #e74c3c; --high: #27ae60; --mid: #f1c40f; --bg: #f8f9fa; --text: #2c3e50; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); margin: 0; padding: 15px; color: var(--text); line-height: 1.5; }
+        
+        .dashboard { display: grid; grid-template-columns: 1fr 320px; gap: 20px; max-width: 1400px; margin: auto; height: 95vh; }
+        
+        /* Left Column Scrolling Logic */
+        .main-col { display: flex; flex-direction: column; height: 100%; gap: 20px; overflow: hidden; }
+        .scroll-container { flex: 1; overflow-y: auto; background: white; border-radius: 12px; border: 1px solid #eee; padding: 10px; }
+        
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        h2 { margin: 0 0 15px 0; font-size: 1.1rem; color: var(--text); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* The Calculator Side */
+        .side-col { display: flex; flex-direction: column; gap: 20px; }
+        #impact-stats { position: sticky; top: 0; text-align: center; }
+        .stat-number { font-size: 3.5rem; font-weight: 800; color: var(--high); margin: 10px 0; }
+        .stat-label { font-size: 0.75rem; color: #95a5a6; text-transform: uppercase; font-weight: bold; }
+
+        /* Mobile Adjustments */
+        @media (max-width: 900px) {
+            .dashboard { grid-template-columns: 1fr; height: auto; }
+            .main-col { height: auto; }
+            .scroll-container { height: 600px; }
+        }
     </style>
 </head>
 <body>
 
 <div class="dashboard">
     <div class="main-col">
-        <div class="card" style="margin-bottom: 20px;">
-            <h2>The Influence Landscape (Scatter Distribution)</h2>
-            <div class="chart-container">
-                <canvas id="scatterChart"></canvas>
-            </div>
-        </div>
         <div class="card">
-            <h2>Ranked Influences</h2>
-            <div class="chart-container" style="height: 500px; overflow-y: auto;">
+            <h2>The Influence Landscape (Scatter)</h2>
+            <div style="height: 200px;"><canvas id="scatterChart"></canvas></div>
+        </div>
+        
+        <div class="scroll-container">
+            <h2>Full Ranked List</h2>
+            <div id="bar-wrapper">
                 <canvas id="barChart"></canvas>
             </div>
         </div>
@@ -39,11 +51,12 @@
 
     <div class="side-col">
         <div class="card" id="impact-stats">
-            <div class="stat-label">Selected Influence</div>
-            <div id="active-name" style="font-weight: bold; min-height: 3em;">Click a data point</div>
-            <div class="stat-label">Effect Size</div>
+            <div class="stat-label">Selected Strategy</div>
+            <div id="active-name" style="font-size: 1.2rem; font-weight: 600; margin: 10px 0; min-height: 3em;">Tap an influence</div>
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+            <div class="stat-label">Effect Size (d)</div>
             <div id="active-score" class="stat-number">--</div>
-            <div id="active-comparison" style="font-style: italic; color: #7f8c8d;">Select a factor to see its power relative to a standard school year.</div>
+            <p id="active-comparison" style="color: #7f8c8d; font-size: 0.95rem;"></p>
         </div>
     </div>
 </div>
