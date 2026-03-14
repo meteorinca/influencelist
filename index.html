@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hattie Influence Visualizer</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; padding: 20px; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #2c3e50; }
+        p { text-align: center; color: #7f8c8d; }
+        #chartWrapper { height: 600px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Hattie's Influences on Achievement</h1>
+    <p>Everything above 0.40 is considered highly effective.</p>
+    <div id="chartWrapper">
+        <canvas id="hattieChart"></canvas>
+    </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
