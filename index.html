@@ -3,23 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hattie Influence Visualizer</title>
+    <title>Hattie's Visible Learning Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; padding: 20px; }
-        .container { max-width: 1000px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        h1 { text-align: center; color: #2c3e50; }
-        p { text-align: center; color: #7f8c8d; }
-        #chartWrapper { height: 600px; margin-top: 20px; }
+        :root { --hinge: #e74c3c; --high: #27ae60; --mid: #f1c40f; --bg: #f8f9fa; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #2c3e50; }
+        .dashboard { display: grid; grid-template-columns: 1fr 350px; gap: 20px; max-width: 1400px; margin: auto; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h2 { margin-top: 0; font-size: 1.2rem; border-bottom: 2px solid var(--bg); padding-bottom: 10px; }
+        #impact-stats { text-align: center; display: flex; flex-direction: column; justify-content: center; height: 100%; }
+        .stat-number { font-size: 3rem; font-weight: bold; color: var(--high); margin: 10px 0; }
+        .stat-label { font-size: 0.9rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 1px; }
+        .chart-container { height: 400px; position: relative; }
+        .legend { display: flex; justify-content: space-around; font-size: 0.8rem; margin-top: 10px; }
+        .legend span::before { content: '●'; margin-right: 5px; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>Hattie's Influences on Achievement</h1>
-    <p>Everything above 0.40 is considered highly effective.</p>
-    <div id="chartWrapper">
-        <canvas id="hattieChart"></canvas>
+<div class="dashboard">
+    <div class="main-col">
+        <div class="card" style="margin-bottom: 20px;">
+            <h2>The Influence Landscape (Scatter Distribution)</h2>
+            <div class="chart-container">
+                <canvas id="scatterChart"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <h2>Ranked Influences</h2>
+            <div class="chart-container" style="height: 500px; overflow-y: auto;">
+                <canvas id="barChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="side-col">
+        <div class="card" id="impact-stats">
+            <div class="stat-label">Selected Influence</div>
+            <div id="active-name" style="font-weight: bold; min-height: 3em;">Click a data point</div>
+            <div class="stat-label">Effect Size</div>
+            <div id="active-score" class="stat-number">--</div>
+            <div id="active-comparison" style="font-style: italic; color: #7f8c8d;">Select a factor to see its power relative to a standard school year.</div>
+        </div>
     </div>
 </div>
 
