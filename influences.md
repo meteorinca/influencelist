@@ -1,13 +1,11 @@
-# A list of influences on achievement
-
-1 Self-reported grades/Student expectations 1.44
-2 Piagetian programs 1.28
-3 Response to intervention 1.07
-4 Teacher credibility 0.90
-4 Providing formative evaluation 0.90
-6 Micro-teaching 0.88
-7 Classroom discussion 0.82
-8 Comprehensive interventions for learning disabled students 0.77
+1 STUDENT EXPECTATIONS 1.44
+2 SELF-REPORTED GRADES 1.44
+3 Piagetian programs 1.28
+4 Response to intervention 1.07
+5 Teacher credibility 0.90
+6 Providing formative evaluation 0.90
+7 Micro-teaching 0.88
+8 Classroom discussion 0.82
 9 Teacher clarity 0.75
 10 Feedback 0.75
 11 Reciprocal teaching 0.74
