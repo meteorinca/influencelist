@@ -20,11 +20,11 @@ Vocabulary programs 0.67
 Repeated reading programs 0.67
 Prior achievement 0.65
 Self-verbalization and self-questioning 0.64
-22 Study skills 0.63
-23 Teaching strategies 0.62
-24 Problem-solving teaching 0.61
-25 Not labelling students 0.61
-26 Comprehension programs 0.60
+Study skills 0.63
+Teaching strategies 0.62
+Problem-solving teaching 0.61
+Not labelling students 0.61
+Comprehension programs 0.60
 27 Concept mapping 0.60
 28 Cooperative vs individualistic learning 0.59
 29 Direct instruction 0.59
