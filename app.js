@@ -2,7 +2,7 @@ async function initDashboard() {
     const response = await fetch('influences.md');
     const text = await response.text();
     
-    // Split into lines and parse each line robustly
+    // Parse each line
     const lines = text.split('\n');
     const dataPoints = [];
 
@@ -10,14 +10,13 @@ async function initDashboard() {
         line = line.trim();
         if (line === '') continue;
 
-        // Look for a number at the end of the line: optional sign, digits, decimal, two digits
+        // Find the last number with two decimals (e.g. 1.44, -0.23)
         const scoreMatch = line.match(/(-?\d+\.\d{2})\s*$/);
         if (!scoreMatch) continue; // skip lines without a score
 
         const score = parseFloat(scoreMatch[1]);
-        // Everything before the score is the name, but we also need to remove a leading number if present
+        // Name is everything before the score, then remove any leading numbering
         let name = line.substring(0, scoreMatch.index).trim();
-        // Remove leading numbering like "1 ", "2. ", etc.
         name = name.replace(/^\d+[\s.)-]*/, '').trim();
 
         dataPoints.push({ name, score });
@@ -26,10 +25,16 @@ async function initDashboard() {
     // Sort by impact (highest first)
     dataPoints.sort((a, b) => b.score - a.score);
 
-    // Dynamically size the bar chart canvas so all bars are visible
+    // --- Bar chart sizing ---
+    // Find the longest label (in characters)
+    const maxLabelLength = Math.max(...dataPoints.map(d => d.name.length));
+    // Approx width per character: 8px, plus some padding for the bar and margins
+    const barCanvasWidth = Math.max(800, maxLabelLength * 8 + 200);
     const barCanvas = document.getElementById('barChart');
-    // Roughly 35px per bar – adjust as needed for comfortable reading
-    barCanvas.style.height = (dataPoints.length * 35) + 'px';
+    barCanvas.width = barCanvasWidth;               // set canvas resolution
+    barCanvas.style.width = barCanvasWidth + 'px';  // ensure CSS width matches
+    // Height: roughly 35px per bar, with a minimum of 400px
+    barCanvas.style.height = Math.max(400, dataPoints.length * 35) + 'px';
 
     renderCharts(dataPoints);
 }
@@ -50,7 +55,7 @@ function renderCharts(data) {
         }
     };
 
-    // 1. Bar Chart (horizontal)
+    // 1. Horizontal Bar Chart (now wide enough for all labels)
     new Chart(ctxBar, {
         type: 'bar',
         data: {
@@ -74,18 +79,28 @@ function renderCharts(data) {
                 }
             },
             plugins: {
-                legend: { display: false }
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => `${ctx.raw} (Effect size)`
+                    }
+                }
             }
         }
     });
 
-    // 2. Scatter Plot
+    // 2. Scatter Plot (stable jitter, fixed y‑range)
+    const jitterAmount = 2; // spread points vertically
     new Chart(ctxScatter, {
         type: 'scatter',
         data: {
             datasets: [{
                 label: 'Influences',
-                data: data.map(d => ({ x: d.score, y: Math.random() * 10 - 5 })), // jitter
+                // Use index to create deterministic jitter so points don't move on every render
+                data: data.map((d, i) => ({
+                    x: d.score,
+                    y: (i % 10) - 5   // repeat pattern between -5 and 4
+                })),
                 backgroundColor: data.map(d => d.score >= 0.4 ? 'rgba(39, 174, 96, 0.6)' : 'rgba(231, 76, 60, 0.6)'),
                 pointRadius: 8,
                 hoverRadius: 12
@@ -94,7 +109,11 @@ function renderCharts(data) {
         options: {
             ...commonOptions,
             scales: {
-                y: { display: false },
+                y: {
+                    display: false,
+                    min: -6,   // ensure all points are inside
+                    max: 6
+                },
                 x: {
                     title: { display: true, text: 'Effect Size (d)' },
                     grid: {
@@ -107,7 +126,7 @@ function renderCharts(data) {
                     callbacks: {
                         label: (ctx) => {
                             const item = data[ctx.dataIndex];
-                            return item.name + ': ' + item.score.toFixed(2);
+                            return `${item.name}: ${item.score.toFixed(2)}`;
                         }
                     }
                 }
