@@ -1,101 +1,98 @@
-async function initDashboard() {
-    const response = await fetch('influences.md');
-    const text = await response.text();
-    
-    // Updated Regex: Handles "83 Name 0.34" or "Name 0.34"
-    const regex = /(?:\d+\s+)?([\w\s–\/-]+?)\s(-?\d\.\d{2})/g;
-    let match;
-    const dataPoints = [];
+async function initChart() {
+    try {
+        const response = await fetch('influences.md');
+        const text = await response.text();
 
-    while ((match = regex.exec(text)) !== null) {
-        dataPoints.push({
-            name: match[1].trim(),
-            score: parseFloat(match[2])
+        // Parse line by line (more reliable than a single regex)
+        const lines = text.split(/\r?\n/);
+        const labels = [];
+        const values = [];
+
+        for (const line of lines) {
+            if (!line.trim()) continue;
+
+            // Matches: optional number at start, then name, then effect size (negative allowed)
+            // Example: "147 Welfare policies –0.12" or "Retention –0.13"
+            const match = line.match(/^(?:\d+\s+)?(.+?)\s+([–-]?\d+\.\d{2})$/);
+            if (match) {
+                let name = match[1].trim();
+                let scoreStr = match[2].trim();
+
+                // Replace en dash (–) or em dash with regular minus
+                scoreStr = scoreStr.replace(/[–—]/g, '-');
+                const score = parseFloat(scoreStr);
+
+                labels.push(name);
+                values.push(score);
+            }
+        }
+
+        // Color coding based on Hattie's zones
+        const colors = values.map(score => {
+            if (score >= 0.7) return '#27ae60';      // High Impact
+            if (score >= 0.4) return '#2ecc71';      // Desired Effect
+            if (score >= 0.15) return '#f1c40f';     // Typical growth
+            return '#e74c3c';                        // Low/Negative
         });
-    }
 
-    // Sort by impact
-    dataPoints.sort((a, b) => b.score - a.score);
+        // --- Fix the squeezed bars: set canvas height dynamically ---
+        const canvas = document.getElementById('hattieChart');
+        const barHeightPx = 28;                // pixels per bar (adjust as needed)
+        const totalHeight = labels.length * barHeightPx;
+        canvas.height = totalHeight;
+        canvas.style.height = `${totalHeight}px`;
 
-    renderCharts(dataPoints);
-}
-
-function renderCharts(data) {
-    const ctxBar = document.getElementById('barChart').getContext('2d');
-    const ctxScatter = document.getElementById('scatterChart').getContext('2d');
-
-    const commonOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        onClick: (e, elements) => {
-            if (elements.length > 0) {
-                const index = elements[0].index;
-                const item = data[index];
-                updateImpactUI(item);
-            }
-        }
-    };
-
-    // 1. Bar Chart
-    new Chart(ctxBar, {
-        type: 'bar',
-        data: {
-            labels: data.map(d => d.name),
-            datasets: [{
-                label: 'Effect Size',
-                data: data.map(d => d.score),
-                backgroundColor: data.map(d => d.score >= 0.4 ? '#27ae60' : '#e74c3c')
-            }]
-        },
-        options: { ...commonOptions, indexAxis: 'y' }
-    });
-
-    // 2. Scatter Plot (The "Scale" Visualizer)
-    new Chart(ctxScatter, {
-        type: 'scatter',
-        data: {
-            datasets: [{
-                label: 'Influences',
-                data: data.map(d => ({ x: d.score, y: Math.random() * 10 - 5 })), // Jitter
-                backgroundColor: data.map(d => d.score >= 0.4 ? 'rgba(39, 174, 96, 0.6)' : 'rgba(231, 76, 60, 0.6)'),
-                pointRadius: 8,
-                hoverRadius: 12
-            }]
-        },
-        options: {
-            ...commonOptions,
-            scales: {
-                y: { display: false },
-                x: { 
-                    title: { display: true, text: 'Effect Size (d)' },
-                    grid: { color: (c) => c.tick.value === 0.4 ? 'red' : '#eee' }
-                }
+        // --- Create the chart ---
+        const ctx = canvas.getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Effect Size (d)',
+                    data: values,
+                    backgroundColor: colors,
+                    borderRadius: 5,
+                    barPercentage: 0.9,          // slightly thinner bars for readability
+                    categoryPercentage: 0.8
+                }]
             },
-            plugins: {
-                tooltip: {
-                    callbacks: { label: (ctx) => data[ctx.dataIndex].name + ': ' + ctx.raw.x }
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,       // respect canvas.height we set
+                plugins: {
+                    tooltip: { enabled: true },
+                    legend: { position: 'top' }
+                    // annotation plugin is optional – remove or keep as is
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Effect Size (d)', font: { weight: 'bold' } },
+                        grid: { color: '#e0e0e0' }
+                    },
+                    y: {
+                        ticks: {
+                            autoSkip: false,       // show EVERY label (requires enough height)
+                            font: { size: 10 },
+                            maxRotation: 0,
+                            minRotation: 0
+                        },
+                        grid: { display: false }
+                    }
+                },
+                layout: {
+                    padding: { top: 10, right: 20, bottom: 10, left: 10 }
                 }
             }
-        }
-    });
-}
+        });
 
-function updateImpactUI(item) {
-    const hinge = 0.40;
-    const multiplier = (item.score / hinge).toFixed(1);
-    
-    document.getElementById('active-name').innerText = item.name;
-    document.getElementById('active-score').innerText = item.score.toFixed(2);
-    
-    let comparisonText = "";
-    if (item.score >= hinge) {
-        comparisonText = `This is ${multiplier}x more powerful than the average educational intervention. It's in the "Zone of Desired Effects."`;
-    } else if (item.score > 0) {
-        comparisonText = `This provides only ${Math.round(multiplier * 100)}% of the expected annual growth. Standard schooling is more effective.`;
-    } else {
-        comparisonText = `This actually has a negative impact on student learning.`;
+        console.log(`Chart rendered with ${labels.length} items. Canvas height set to ${totalHeight}px`);
+
+    } catch (err) {
+        console.error("Error loading or parsing the MD file:", err);
     }
-    document.getElementById('active-comparison').innerText = comparisonText;
 }
 
-initDashboard();
+initChart();
