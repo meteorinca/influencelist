@@ -1,25 +1,21 @@
-// app.js 
+// app.js – Fixed scatter spread + bar chart readability
 
 async function initDashboard() {
     try {
         const response = await fetch('influences.md');
         const text = await response.text();
 
-        // ---- Parse data line by line ----
+        // Parse data line by line
         const lines = text.split(/\r?\n/);
-        const influences = []; // each item: { name, effect }
+        const influences = [];
 
         for (const line of lines) {
             if (!line.trim()) continue;
             // Matches: optional number + name + effect size (allow en dash or minus)
-            // Examples:
-            // "147 Welfare policies –0.12"
-            // "Retention –0.13"
-            // "Feedback 0.73"
             const match = line.match(/^(?:\d+\s+)?(.+?)\s+([–-]?\d+\.\d{2})$/);
             if (match) {
                 let name = match[1].trim();
-                let scoreStr = match[2].trim().replace(/[–—]/g, '-'); // en dash → minus
+                let scoreStr = match[2].trim().replace(/[–—]/g, '-');
                 const effect = parseFloat(scoreStr);
                 influences.push({ name, effect });
             }
@@ -45,9 +41,9 @@ async function initDashboard() {
             return '#e74c3c';
         });
 
-        // ----- 1. Create the Horizontal Bar Chart (with scrolling) -----
+        // ----- 1. Horizontal Bar Chart (readable) -----
         const barCanvas = document.getElementById('barChart');
-        const barHeightPx = 28; // pixels per bar
+        const barHeightPx = 35;            // increased from 28 for better label spacing
         const totalHeight = labels.length * barHeightPx;
         barCanvas.height = totalHeight;
         barCanvas.style.height = `${totalHeight}px`;
@@ -61,8 +57,8 @@ async function initDashboard() {
                     label: 'Effect Size (d)',
                     data: values,
                     backgroundColor: colors,
-                    borderRadius: 5,
-                    barPercentage: 0.9,
+                    borderRadius: 4,
+                    barPercentage: 0.85,
                     categoryPercentage: 0.8
                 }]
             },
@@ -71,9 +67,11 @@ async function initDashboard() {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    tooltip: { callbacks: {
-                        label: (ctx) => `Effect: ${ctx.raw.toFixed(2)}`
-                    }},
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => `Effect: ${ctx.raw.toFixed(2)}`
+                        }
+                    },
                     legend: { position: 'top' }
                 },
                 scales: {
@@ -83,8 +81,8 @@ async function initDashboard() {
                     },
                     y: {
                         ticks: {
-                            autoSkip: false,      // show every label
-                            font: { size: 10 },
+                            autoSkip: false,
+                            font: { size: 9 },      // smaller font to fit long names
                             maxRotation: 0,
                             minRotation: 0
                         },
@@ -100,16 +98,38 @@ async function initDashboard() {
             }
         });
 
-        // ----- 2. Create the Scatter Chart -----
+        // ----- 2. Scatter Plot (spread out + vertical line at 0.4) -----
         const scatterCanvas = document.getElementById('scatterChart');
         const scatterCtx = scatterCanvas.getContext('2d');
-        
-        // Prepare scatter data: each influence as a point (x = effect, y = random jitter for visibility)
-        const scatterData = influences.map(item => ({
-            x: item.effect,
-            y: Math.random() * 2 - 1, // jitter between -1 and 1 to avoid overlap
-            name: item.name
-        }));
+
+        // Create a strip plot: group by effect rounded to 1 decimal, then spread vertically
+        const effectGroups = new Map();
+        influences.forEach(item => {
+            const key = Math.round(item.effect * 10) / 10; // one decimal bin
+            if (!effectGroups.has(key)) effectGroups.set(key, []);
+            effectGroups.get(key).push(item);
+        });
+
+        const scatterData = [];
+        for (let [effectBin, items] of effectGroups.entries()) {
+            const count = items.length;
+            // Spread vertically from -1.5 to 1.5 based on position within the bin
+            items.forEach((item, idx) => {
+                let yOffset;
+                if (count === 1) {
+                    yOffset = 0;
+                } else {
+                    // equally spaced jitter
+                    yOffset = (idx / (count - 1)) * 3 - 1.5;
+                }
+                scatterData.push({
+                    x: item.effect,
+                    y: yOffset,
+                    name: item.name,
+                    effect: item.effect
+                });
+            });
+        }
 
         const scatterChart = new Chart(scatterCtx, {
             type: 'scatter',
@@ -124,8 +144,8 @@ async function initDashboard() {
                         if (effect >= 0.15) return '#f1c40f';
                         return '#e74c3c';
                     },
-                    pointRadius: 6,
-                    pointHoverRadius: 8,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
                     borderWidth: 0
                 }]
             },
@@ -147,24 +167,64 @@ async function initDashboard() {
                         title: { display: true, text: 'Effect Size (d)' },
                         beginAtZero: true,
                         min: -0.5,
-                        max: 1.5
+                        max: 1.5,
+                        grid: { color: '#ccc' }
                     },
                     y: {
-                        display: false, // hide y-axis because it's just jitter
-                        min: -1.5,
-                        max: 1.5
+                        display: false,   // hide y-axis because it's just jitter
+                        min: -1.8,
+                        max: 1.8
                     }
                 },
                 onClick: (event, activeElements) => {
                     if (activeElements.length) {
-                        const dataPoint = scatterData[activeElements[0].index];
-                        updateSidePanel(dataPoint.name, dataPoint.x);
+                        const point = scatterData[activeElements[0].index];
+                        updateSidePanel(point.name, point.effect);
                     }
                 }
             }
         });
 
-        // ----- Helper: Update side panel when an item is clicked -----
+        // Add a vertical line at 0.4 (custom drawing without extra plugin)
+        // We draw after chart is rendered, and also on resize.
+        function drawVerticalLine() {
+            const canvas = scatterCanvas;
+            const chart = scatterChart;
+            if (!chart || !chart.ctx) return;
+            const ctx = chart.ctx;
+            const xAxis = chart.scales.x;
+            if (!xAxis) return;
+            const xPixel = xAxis.getPixelForValue(0.4);
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(xPixel, chart.scales.y.top);
+            ctx.lineTo(xPixel, chart.scales.y.bottom);
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#e74c3c';
+            ctx.setLineDash([6, 6]);
+            ctx.stroke();
+            ctx.restore();
+
+            // Add label "Hinge Point (0.4)"
+            ctx.font = '12px "Inter", sans-serif';
+            ctx.fillStyle = '#e74c3c';
+            ctx.shadowBlur = 0;
+            ctx.fillText('Hinge Point (0.4)', xPixel + 5, chart.scales.y.top + 15);
+        }
+
+        // Draw after initial render and on resize
+        setTimeout(drawVerticalLine, 100);
+        window.addEventListener('resize', () => {
+            setTimeout(drawVerticalLine, 100);
+        });
+        // Also redraw when tooltips or interactions occur – simplest: hook into chart update
+        const originalUpdate = scatterChart.update;
+        scatterChart.update = function(...args) {
+            originalUpdate.apply(this, args);
+            setTimeout(drawVerticalLine, 50);
+        };
+
+        // ----- Helper: Update side panel -----
         function updateSidePanel(name, effect) {
             document.getElementById('active-name').textContent = name;
             document.getElementById('active-score').textContent = effect.toFixed(2);
@@ -173,7 +233,6 @@ async function initDashboard() {
                                effect >= 0 ? "Below typical growth – consider other strategies." :
                                "Negative effect – likely harmful.";
             document.getElementById('active-comparison').innerHTML = comparison;
-            // Optional: add color coding to the stat number
             const scoreElem = document.getElementById('active-score');
             if (effect >= 0.7) scoreElem.style.color = '#27ae60';
             else if (effect >= 0.4) scoreElem.style.color = '#2ecc71';
@@ -181,7 +240,7 @@ async function initDashboard() {
             else scoreElem.style.color = '#e74c3c';
         }
 
-        // Optional: set default selection to the highest influence
+        // Set default selection to highest effect
         if (sorted.length) {
             updateSidePanel(sorted[0].name, sorted[0].effect);
         }
