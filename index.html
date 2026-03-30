@@ -1,196 +1,53 @@
-// app.js – Complete working version for your HTML structure
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hattie's Visible Learning Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --hinge: #e74c3c; --high: #27ae60; --mid: #f1c40f; --bg: #f8f9fa; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #2c3e50; }
+        .dashboard { display: grid; grid-template-columns: 1fr 350px; gap: 20px; max-width: 1400px; margin: auto; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h2 { margin-top: 0; font-size: 1.2rem; border-bottom: 2px solid var(--bg); padding-bottom: 10px; }
+        #impact-stats { text-align: center; display: flex; flex-direction: column; justify-content: center; height: 100%; }
+        .stat-number { font-size: 3rem; font-weight: bold; color: var(--high); margin: 10px 0; }
+        .stat-label { font-size: 0.9rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 1px; }
+        .chart-container { height: 400px; position: relative; }
+        .legend { display: flex; justify-content: space-around; font-size: 0.8rem; margin-top: 10px; }
+        .legend span::before { content: '●'; margin-right: 5px; }
+    </style>
+</head>
+<body>
 
-async function initDashboard() {
-    try {
-        const response = await fetch('influences.md');
-        const text = await response.text();
+<div class="dashboard">
+    <div class="main-col">
+        <div class="card" style="margin-bottom: 20px;">
+            <h2>The Influence Landscape (Scatter Distribution)</h2>
+            <div class="chart-container">
+                <canvas id="scatterChart"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <h2>Ranked Influences</h2>
+            <div class="chart-container" style="height: 500px; overflow-y: auto;">
+                <canvas id="barChart"></canvas>
+            </div>
+        </div>
+    </div>
 
-        // ---- Parse data line by line ----
-        const lines = text.split(/\r?\n/);
-        const influences = []; // each item: { name, effect }
+    <div class="side-col">
+        <div class="card" id="impact-stats">
+            <div class="stat-label">Selected Influence</div>
+            <div id="active-name" style="font-weight: bold; min-height: 3em;">Click a data point</div>
+            <div class="stat-label">Effect Size</div>
+            <div id="active-score" class="stat-number">--</div>
+            <div id="active-comparison" style="font-style: italic; color: #7f8c8d;">Select a factor to see its power relative to a standard school year.</div>
+        </div>
+    </div>
+</div>
 
-        for (const line of lines) {
-            if (!line.trim()) continue;
-            // Matches: optional number + name + effect size (allow en dash or minus)
-            // Examples:
-            // "147 Welfare policies –0.12"
-            // "Retention –0.13"
-            // "Feedback 0.73"
-            const match = line.match(/^(?:\d+\s+)?(.+?)\s+([–-]?\d+\.\d{2})$/);
-            if (match) {
-                let name = match[1].trim();
-                let scoreStr = match[2].trim().replace(/[–—]/g, '-'); // en dash → minus
-                const effect = parseFloat(scoreStr);
-                influences.push({ name, effect });
-            }
-        }
-
-        if (influences.length === 0) {
-            console.error("No data parsed. Check file format.");
-            return;
-        }
-
-        console.log(`Loaded ${influences.length} influences`);
-
-        // Sort for bar chart (highest effect first)
-        const sorted = [...influences].sort((a, b) => b.effect - a.effect);
-        const labels = sorted.map(item => item.name);
-        const values = sorted.map(item => item.effect);
-
-        // Colors based on Hattie's zones
-        const colors = values.map(v => {
-            if (v >= 0.7) return '#27ae60';
-            if (v >= 0.4) return '#2ecc71';
-            if (v >= 0.15) return '#f1c40f';
-            return '#e74c3c';
-        });
-
-        // ----- 1. Create the Horizontal Bar Chart (with scrolling) -----
-        const barCanvas = document.getElementById('barChart');
-        const barHeightPx = 28; // pixels per bar
-        const totalHeight = labels.length * barHeightPx;
-        barCanvas.height = totalHeight;
-        barCanvas.style.height = `${totalHeight}px`;
-
-        const barCtx = barCanvas.getContext('2d');
-        const barChart = new Chart(barCtx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Effect Size (d)',
-                    data: values,
-                    backgroundColor: colors,
-                    borderRadius: 5,
-                    barPercentage: 0.9,
-                    categoryPercentage: 0.8
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    tooltip: { callbacks: {
-                        label: (ctx) => `Effect: ${ctx.raw.toFixed(2)}`
-                    }},
-                    legend: { position: 'top' }
-                },
-                scales: {
-                    x: {
-                        beginAtZero: true,
-                        title: { display: true, text: 'Effect Size (d)', font: { weight: 'bold' } }
-                    },
-                    y: {
-                        ticks: {
-                            autoSkip: false,      // show every label
-                            font: { size: 10 },
-                            maxRotation: 0,
-                            minRotation: 0
-                        },
-                        grid: { display: false }
-                    }
-                },
-                onClick: (event, activeElements) => {
-                    if (activeElements.length) {
-                        const idx = activeElements[0].index;
-                        updateSidePanel(labels[idx], values[idx]);
-                    }
-                }
-            }
-        });
-
-        // ----- 2. Create the Scatter Chart -----
-        const scatterCanvas = document.getElementById('scatterChart');
-        const scatterCtx = scatterCanvas.getContext('2d');
-        
-        // Prepare scatter data: each influence as a point (x = effect, y = random jitter for visibility)
-        const scatterData = influences.map(item => ({
-            x: item.effect,
-            y: Math.random() * 2 - 1, // jitter between -1 and 1 to avoid overlap
-            name: item.name
-        }));
-
-        const scatterChart = new Chart(scatterCtx, {
-            type: 'scatter',
-            data: {
-                datasets: [{
-                    label: 'Influences',
-                    data: scatterData,
-                    backgroundColor: (ctx) => {
-                        const effect = ctx.raw.x;
-                        if (effect >= 0.7) return '#27ae60';
-                        if (effect >= 0.4) return '#2ecc71';
-                        if (effect >= 0.15) return '#f1c40f';
-                        return '#e74c3c';
-                    },
-                    pointRadius: 6,
-                    pointHoverRadius: 8,
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: (ctx) => {
-                                const point = ctx.raw;
-                                return `${point.name}: ${point.x.toFixed(2)}`;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: {
-                        title: { display: true, text: 'Effect Size (d)' },
-                        beginAtZero: true,
-                        min: -0.5,
-                        max: 1.5
-                    },
-                    y: {
-                        display: false, // hide y-axis because it's just jitter
-                        min: -1.5,
-                        max: 1.5
-                    }
-                },
-                onClick: (event, activeElements) => {
-                    if (activeElements.length) {
-                        const dataPoint = scatterData[activeElements[0].index];
-                        updateSidePanel(dataPoint.name, dataPoint.x);
-                    }
-                }
-            }
-        });
-
-        // ----- Helper: Update side panel when an item is clicked -----
-        function updateSidePanel(name, effect) {
-            document.getElementById('active-name').textContent = name;
-            document.getElementById('active-score').textContent = effect.toFixed(2);
-            const comparison = effect >= 0.4 ? "Above the hinge point (0.4) – accelerates learning." :
-                               effect >= 0.15 ? "Within typical growth zone (0.15–0.4)." :
-                               effect >= 0 ? "Below typical growth – consider other strategies." :
-                               "Negative effect – likely harmful.";
-            document.getElementById('active-comparison').innerHTML = comparison;
-            // Optional: add color coding to the stat number
-            const scoreElem = document.getElementById('active-score');
-            if (effect >= 0.7) scoreElem.style.color = '#27ae60';
-            else if (effect >= 0.4) scoreElem.style.color = '#2ecc71';
-            else if (effect >= 0.15) scoreElem.style.color = '#f1c40f';
-            else scoreElem.style.color = '#e74c3c';
-        }
-
-        // Optional: set default selection to the highest influence
-        if (sorted.length) {
-            updateSidePanel(sorted[0].name, sorted[0].effect);
-        }
-
-    } catch (err) {
-        console.error("Failed to load or parse influences.md:", err);
-        document.getElementById('active-name').textContent = "Error loading data";
-        document.getElementById('active-score').textContent = "?";
-    }
-}
-
-initDashboard();
+<script src="app.js"></script>
+</body>
+</html>
