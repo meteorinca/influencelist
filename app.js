@@ -35,20 +35,45 @@ function renderCharts(data) {
             }
         }
     };
-
+   // Calculate total height: 150 items * 30px per item = 4500px
+   const totalHeight = labels.length * 30; 
+   ctxBar.canvas.style.height = `${totalHeight}px`;
     // 1. Bar Chart
     new Chart(ctxBar, {
         type: 'bar',
         data: {
-            labels: data.map(d => d.name),
-            datasets: [{
-                label: 'Effect Size',
-                data: data.map(d => d.score),
-                backgroundColor: data.map(d => d.score >= 0.4 ? '#27ae60' : '#e74c3c')
-            }]
+            labels: labels, // Your labels parsed from influences.md
+        datasets: [{
+            label: 'Effect Size',
+            data: values, // Your scores parsed from influences.md
+            backgroundColor: colors,
+            borderRadius: 4,
+            barThickness: 20 // Keeps the bars a consistent, readable size
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        maintainAspectRatio: false, // REQUIRED: Allows the canvas to be tall
+        responsive: true,
+        plugins: {
+            legend: { display: false }
         },
-        options: { ...commonOptions, indexAxis: 'y' }
-    });
+        scales: {
+            y: {
+                ticks: {
+                    autoSkip: false, // REQUIRED: Prevents skipping items
+                    font: {
+                        size: 12 // Keeping your original font size
+                    }
+                },
+                grid: { display: false }
+            },
+            x: {
+                position: 'top'
+            }
+        }
+    }
+});
 
     // 2. Scatter Plot (The "Scale" Visualizer)
     new Chart(ctxScatter, {
