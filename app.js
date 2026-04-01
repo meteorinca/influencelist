@@ -3,7 +3,7 @@ async function initDashboard() {
     const text = await response.text();
     
     // Updated Regex: Handles "83 Name 0.34" or "Name 0.34"
-    const regex = /(?:\d+\s+)?([\w\s–\/-]+?)\s(-?\d\.\d{2})/g;
+    const regex = /(?:\d+\s+)?([\w\s–\/-]+?)\s+(-?\d\.\d{2})/g;
     let match;
     const dataPoints = [];
 
