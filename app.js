@@ -9,29 +9,22 @@ async function initDashboard() {
         const line = rawLine.trim();
         if (!line) continue;
 
-        // Matches:
-        // 1 STUDENT EXPECTATIONS 1.44
-        // 146 Summer vacation –0.02
-        // Keeps the rank number as part of the displayed label
+        // Keep rank number in label
         const match = line.match(/^(\d+)\s+(.+?)\s+([−–-]?\d+\.\d{2})$/);
+        if (!match) continue;
 
-        if (match) {
-            const rank = match[1];
-            const name = match[2].trim();
-            const score = parseFloat(match[3].replace(/[−–]/g, '-'));
+        const rank = match[1];
+        const name = match[2].trim();
+        const score = parseFloat(match[3].replace(/[−–]/g, '-'));
 
-            dataPoints.push({
-                rank: parseInt(rank, 10),
-                name: `${rank} ${name}`,
-                shortName: name,
-                score
-            });
-        }
+        dataPoints.push({
+            rank: parseInt(rank, 10),
+            name: `${rank} ${name}`,
+            score
+        });
     }
 
-    // Sort by impact, highest first
     dataPoints.sort((a, b) => b.score - a.score);
-
     renderCharts(dataPoints);
 }
 
@@ -42,20 +35,21 @@ function renderCharts(data) {
     const ctxBar = barCanvas.getContext('2d');
     const ctxScatter = scatterCanvas.getContext('2d');
 
-    // Make the bar chart tall enough so every item gets its own visible row
-    const rowHeight = 28;
-    const chartHeight = Math.max(500, data.length * rowHeight);
+    // One row per influence
+    const rowHeight = 26;
+    const chartHeight = data.length * rowHeight;
+
+    // Important: set actual canvas render size, not CSS style height
+    barCanvas.width = barCanvas.parentElement.clientWidth - 10;
     barCanvas.height = chartHeight;
-    barCanvas.style.height = `${chartHeight}px`;
 
     const commonOptions = {
-        responsive: true,
+        responsive: false,
         maintainAspectRatio: false,
-        onClick: (e, elements, chart) => {
+        onClick: (e, elements) => {
             if (elements.length > 0) {
                 const index = elements[0].index;
-                const item = data[index];
-                updateImpactUI(item);
+                updateImpactUI(data[index]);
             }
         }
     };
@@ -69,47 +63,38 @@ function renderCharts(data) {
                 data: data.map(d => d.score),
                 backgroundColor: data.map(d => d.score >= 0.4 ? '#27ae60' : '#e74c3c'),
                 borderWidth: 0,
-                barThickness: 18,
-                maxBarThickness: 18,
-                categoryPercentage: 1.0,
-                barPercentage: 0.95
+                barThickness: 16,
+                maxBarThickness: 16,
+                categoryPercentage: 0.9,
+                barPercentage: 0.9
             }]
         },
         options: {
             ...commonOptions,
             indexAxis: 'y',
             animation: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => `${data[ctx.dataIndex].name}: ${ctx.raw.toFixed(2)}`
+                    }
+                }
+            },
             scales: {
                 y: {
                     ticks: {
                         autoSkip: false,
-                        font: {
-                            size: 12
-                        }
+                        font: { size: 12 }
                     },
-                    grid: {
-                        display: false
-                    }
+                    grid: { display: false }
                 },
                 x: {
-                    beginAtZero: false,
                     ticks: {
-                        font: {
-                            size: 12
-                        }
+                        font: { size: 12 }
                     },
                     grid: {
                         color: '#eee'
-                    }
-                }
-            },
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    callbacks: {
-                        label: (ctx) => `${data[ctx.dataIndex].name}: ${ctx.raw.toFixed(2)}`
                     }
                 }
             }
@@ -132,7 +117,14 @@ function renderCharts(data) {
             }]
         },
         options: {
-            ...commonOptions,
+            responsive: true,
+            maintainAspectRatio: false,
+            onClick: (e, elements) => {
+                if (elements.length > 0) {
+                    const index = elements[0].index;
+                    updateImpactUI(data[index]);
+                }
+            },
             scales: {
                 y: { display: false },
                 x: {
