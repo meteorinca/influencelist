@@ -146,6 +146,6 @@
 145 Open vs traditional 0.01
 146 Summer vacation –0.02
 147 Welfare policies –0.12
-148 Retention –0.13
-149 Television –0.18
-150 Mobility –0.34
+148 Retention  (Overwhelmingly Disastrous) –0.13
+149 Television (Overwhelmingly Disastrous) –0.18
+150 Mobility (Overwhelmingly Disastrous) –0.34
