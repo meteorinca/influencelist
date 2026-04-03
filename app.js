@@ -1,3 +1,19 @@
+/**
+ * Custom descriptors for specific educational influences.
+ * Add as many as you'd like here using the EXACT name from the list (without rank).
+ */
+const descriptors = {
+    "STUDENT EXPECTATIONS": "When students are involved in predicting their own performance, they tend to reach those self-set bars. It is the most powerful predictor of success.",
+    "SELF-REPORTED GRADES": "Similar to expectations; students are remarkably accurate at knowing their own level of achievement, which can be leveraged for goal setting.",
+    "TEACHER CLARITY": "When students understand the learning intentions and success criteria, their achievement increases significantly.",
+    "FEEDBACK": "One of the most powerful influences, though it is most effective when it is 'just in time' and 'just for me.'",
+    "HOMEWORK": "Has a much higher impact in secondary school than in primary school, where its effect is nearly zero.",
+    "CLASS SIZE": "While popular with parents and teachers, reducing class size has a relatively small impact compared to changing HOW teachers teach.",
+    "RETENTION": "Holding a student back a year is one of the few interventions with a consistently negative impact on achievement and social-emotional well-being.",
+    "TELEVISION": "Excessive consumption of non-educational media negatively correlates with academic performance and engagement.",
+    "MOBILITY": "Moving schools frequently disrupts the 'social capital' of a student and leads to gaps in curriculum coverage."
+};
+
 async function initDashboard() {
     const response = await fetch('influences.md');
     const text = await response.text();
@@ -14,12 +30,13 @@ async function initDashboard() {
         if (!match) continue;
 
         const rank = match[1];
-        const name = match[2].trim();
+        const nameOnly = match[2].trim();
         const score = parseFloat(match[3].replace(/[−–]/g, '-'));
 
         dataPoints.push({
             rank: parseInt(rank, 10),
-            name: `${rank} ${name}`,
+            name: `${rank} ${nameOnly}`, // Display name with rank
+            cleanName: nameOnly,         // Reference name for descriptors
             score
         });
     }
@@ -39,12 +56,13 @@ function renderCharts(data) {
     const rowHeight = 26;
     const chartHeight = data.length * rowHeight;
 
-    // Important: set actual canvas render size, not CSS style height
+    // Set actual canvas render size for scrolling
     barCanvas.width = barCanvas.parentElement.clientWidth - 10;
+    barCanvas.style.height = `${chartHeight}px`; // Fixed the display height
     barCanvas.height = chartHeight;
 
     const commonOptions = {
-        responsive: false,
+        responsive: true,
         maintainAspectRatio: false,
         onClick: (e, elements) => {
             if (elements.length > 0) {
@@ -84,18 +102,15 @@ function renderCharts(data) {
             scales: {
                 y: {
                     ticks: {
-                        autoSkip: false,
+                        autoSkip: false, // Ensure every influence is shown
                         font: { size: 12 }
                     },
                     grid: { display: false }
                 },
                 x: {
-                    ticks: {
-                        font: { size: 12 }
-                    },
-                    grid: {
-                        color: '#eee'
-                    }
+                    position: 'top',
+                    ticks: { font: { size: 12 } },
+                    grid: { color: '#eee' }
                 }
             }
         }
@@ -117,14 +132,7 @@ function renderCharts(data) {
             }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            onClick: (e, elements) => {
-                if (elements.length > 0) {
-                    const index = elements[0].index;
-                    updateImpactUI(data[index]);
-                }
-            },
+            ...commonOptions,
             scales: {
                 y: { display: false },
                 x: {
@@ -161,7 +169,14 @@ function updateImpactUI(item) {
         comparisonText = `This actually has a negative impact on student learning.`;
     }
 
-    document.getElementById('active-comparison').innerText = comparisonText;
+    // Check if we have a custom descriptor for this item
+    const customDescription = descriptors[item.cleanName];
+    if (customDescription) {
+        comparisonText += `<br><br><hr style="border:0; border-top:1px solid #eee; margin: 10px 0;"><span style="color: #34495e; font-style: normal; display: block;">${customDescription}</span>`;
+    }
+
+    // Use innerHTML to allow the <br> and <span> tags to render
+    document.getElementById('active-comparison').innerHTML = comparisonText;
 }
 
 initDashboard();
